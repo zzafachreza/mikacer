@@ -23,43 +23,72 @@ export default function DetailPage({ route, navigation }) {
     return imageMap[nominal] || null;
   };
 
-  const renderTransaction = (item, index) => {
-    // For single money (first transaction)
-    if (index === 0) {
-      return (
-        <View key={index} style={styles.transactionBlock}>
-          <Image source={getImageByNominal(item.nominal1)} style={styles.uangImage} />
-          <Text style={styles.equalSymbol}>=</Text>
-          <Text style={styles.resultText}>{formatRupiah(item.nominal1)}</Text>
-        </View>
-      );
-    }
+  const calculateTotal = () => {
+    return riwayatTransaksi.reduce((sum, item) => {
+      if (item.operator === '+') return sum + item.nominal2;
+      if (item.operator === '-') return sum - item.nominal2;
+      return sum + item.nominal1;
+    }, 0);
+  };
 
-    // For addition transactions
+  const renderTransaction = () => {
+    if (riwayatTransaksi.length === 0) return null;
+  
+    // Kelompokkan uang menjadi pasangan 2-2
+    const pairs = [];
+    for (let i = 0; i < riwayatTransaksi.length; i += 2) {
+      pairs.push(riwayatTransaksi.slice(i, i + 2));
+    }
+  
     return (
-      <View key={index} style={styles.transactionBlock}>
-        <View style={styles.uangRow}>
-          <Image source={getImageByNominal(riwayatTransaksi[0].nominal1)} style={styles.uangImage} />
-          <Text style={styles.operatorText}>+</Text>
-          <Image source={getImageByNominal(item.nominal1)} style={styles.uangImage} />
-        </View>
-        <Text style={styles.equalSymbol}>=</Text>
-        <Text style={styles.resultText}>{formatRupiah(item.result)}</Text>
+      <View style={styles.transactionContainer}>
+        {pairs.map((pair, pairIndex) => {
+          // Jika ini pasangan terakhir dan hanya ada 1 uang (ganjil)
+          if (pair.length === 1 && pairIndex === pairs.length - 1) {
+            return (
+              <View key={pairIndex} style={styles.singleItemContainer}>
+                <Image 
+                  source={getImageByNominal(pair[0].nominal1)} 
+                  style={styles.uangImage} 
+                />
+              </View>
+            );
+          }
+          
+          // Untuk pasangan normal (2 uang)
+          return (
+            <View key={pairIndex} style={styles.horizontalPair}>
+              <Image 
+                source={getImageByNominal(pair[0].nominal1)} 
+                style={styles.uangImage} 
+              />
+              <Text style={styles.operatorText}>+</Text>
+              <Image 
+                source={getImageByNominal(pair[1].nominal1)} 
+                style={styles.uangImage} 
+              />
+            </View>
+          );
+        })}
       </View>
     );
   };
+  
+
+  const displayTotal = total > 0 ? total : calculateTotal();
 
   return (
     <View style={styles.container}>
       <Text style={styles.header}>DETAIL</Text>
-
-      <View style={styles.totalContainer}>
+      
+      {/* Total display at the top (warna merah) */}
+      <View style={styles.topTotalContainer}>
         <Image source={require('../../assets/icon-coin.png')} style={styles.coinIcon} />
-        <Text style={styles.totalText}>{formatRupiah(total)}</Text>
+        <Text style={styles.topTotalText}>{formatRupiah(displayTotal)}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollArea}>
-        {riwayatTransaksi.map((item, index) => renderTransaction(item, index))}
+        {renderTransaction()}
       </ScrollView>
 
       <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
@@ -83,7 +112,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 20,
   },
-  totalContainer: {
+  topTotalContainer: {
     backgroundColor: '#fb5607',
     borderRadius: 30,
     paddingVertical: 10,
@@ -91,13 +120,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
+    width: '100%',
+    justifyContent: 'center',
   },
-  coinIcon: {
-    width: 25,
-    height: 25,
-    marginRight: 10,
-  },
-  totalText: {
+  topTotalText: {
     color: 'white',
     fontSize: 28,
     fontWeight: 'bold',
@@ -107,42 +133,32 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     width: '100%',
   },
-  transactionBlock: {
+  transactionContainer: {
     width: '100%',
     alignItems: 'center',
-    marginBottom: 30,
-    backgroundColor: 'rgba(255,255,255,0.5)',
-    borderRadius: 15,
-    padding: 15,
   },
-  uangRow: {
+  operationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
-  },
-  uangImage: {
-    width: windowWidth / 3.5,
-    height: 70,
-    resizeMode: 'contain',
-    marginHorizontal: 5,
-  },
-  operatorText: {
-    fontSize: 30,
-    fontWeight: 'bold',
-    color: '#000',
-    marginHorizontal: 10,
-  },
-  equalSymbol: {
-    fontSize: 30,
-    color: '#000',
     marginVertical: 5,
   },
-  resultText: {
-    fontSize: 24,
+  uangImage: {
+    width: windowWidth / 2.5,
+    height: 80,
+    resizeMode: 'contain',
+    marginHorizontal: 10,
+  },
+  operatorText: {
+    fontSize: 40,
     fontWeight: 'bold',
     color: '#000',
-    marginTop: 5,
+    marginHorizontal: 15,
+  },
+  coinIcon: {
+    width: 25,
+    height: 25,
+    marginRight: 10,
   },
   backButton: {
     marginTop: 10,
@@ -155,5 +171,34 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  transactionContainer: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  pairContainer: {
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  horizontalPair: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  singleItemContainer: {
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  uangImage: {
+    width: windowWidth / 3,
+    height: 70,
+    resizeMode: 'contain',
+    marginHorizontal: 5,
+  },
+  operatorText: {
+    fontSize: 30,
+    fontWeight: 'bold',
+    color: '#000',
+    marginHorizontal: 10,
   },
 });

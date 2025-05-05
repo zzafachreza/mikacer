@@ -1,5 +1,5 @@
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import React from 'react';
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
 import { colors, fonts, windowWidth } from '../../utils';
 
 const formatRupiah = (amount) => {
@@ -7,7 +7,21 @@ const formatRupiah = (amount) => {
 };
 
 export default function DetailPage({ route, navigation }) {
-  const { riwayatTransaksi = [], total = 0 } = route.params || {};
+  const [riwayat, setRiwayat] = useState(route.params?.riwayatTransaksi || []);
+  const [total, setTotal] = useState(0);
+
+  useEffect(() => {
+    let calculatedTotal = 0;
+    riwayat.forEach(item => {
+      if (item.operator === '+' && !item.isKembalian) {
+        calculatedTotal += item.nominal1;
+      } else if (item.operator === '-') {
+        calculatedTotal -= item.nominal1;
+      }
+      // Kembalian tidak dihitung
+    });
+    setTotal(calculatedTotal);
+  }, [riwayat]);
 
   const getImageByNominal = (nominal) => {
     const imageMap = {
@@ -23,77 +37,89 @@ export default function DetailPage({ route, navigation }) {
     return imageMap[nominal] || null;
   };
 
-  const calculateTotal = () => {
-    return riwayatTransaksi.reduce((sum, item) => {
-      if (item.operator === '+') return sum + item.nominal2;
-      if (item.operator === '-') return sum - item.nominal2;
-      return sum + item.nominal1;
-    }, 0);
-  };
+  const uangMasuk = riwayat.filter(item => item.operator === '+' && !item.isKembalian);
+  const pengeluaran = riwayat.filter(item => item.operator === '-');
+  const kembalian = riwayat.filter(item => item.operator === '+' && item.isKembalian);
 
-  const renderTransaction = () => {
-    if (riwayatTransaksi.length === 0) return null;
-  
-    // Kelompokkan uang menjadi pasangan 2-2
-    const pairs = [];
-    for (let i = 0; i < riwayatTransaksi.length; i += 2) {
-      pairs.push(riwayatTransaksi.slice(i, i + 2));
+  const handleReset = () => {
+    Alert.alert('Reset Berhasil', 'Semua data transaksi telah dikosongkan.');
+    if (route.params?.onReset) {
+      route.params.onReset();
     }
-  
-    return (
-      <View style={styles.transactionContainer}>
-        {pairs.map((pair, pairIndex) => {
-          // Jika ini pasangan terakhir dan hanya ada 1 uang (ganjil)
-          if (pair.length === 1 && pairIndex === pairs.length - 1) {
-            return (
-              <View key={pairIndex} style={styles.singleItemContainer}>
-                <Image 
-                  source={getImageByNominal(pair[0].nominal1)} 
-                  style={styles.uangImage} 
-                />
-              </View>
-            );
-          }
-          
-          // Untuk pasangan normal (2 uang)
-          return (
-            <View key={pairIndex} style={styles.horizontalPair}>
-              <Image 
-                source={getImageByNominal(pair[0].nominal1)} 
-                style={styles.uangImage} 
-              />
-              <Text style={styles.operatorText}>+</Text>
-              <Image 
-                source={getImageByNominal(pair[1].nominal1)} 
-                style={styles.uangImage} 
-              />
-            </View>
-          );
-        })}
-      </View>
-    );
+    navigation.goBack();
   };
-  
-
-  const displayTotal = total > 0 ? total : calculateTotal();
 
   return (
     <View style={styles.container}>
       <Text style={styles.header}>DETAIL</Text>
-      
-      {/* Total display at the top (warna merah) */}
+
       <View style={styles.topTotalContainer}>
         <Image source={require('../../assets/icon-coin.png')} style={styles.coinIcon} />
-        <Text style={styles.topTotalText}>{formatRupiah(displayTotal)}</Text>
+        <Text style={styles.topTotalText}>{formatRupiah(total)}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollArea}>
-        {renderTransaction()}
+        {/* Uang Masuk */}
+        {uangMasuk.length > 0 && (
+          <View style={styles.columnWrap}>
+            {uangMasuk.map((item, idx) => (
+              <React.Fragment key={`in-${idx}`}>
+                <Image
+                  source={getImageByNominal(item.nominal1 || item.nominal2)}
+                  style={styles.uangImageVertical}
+                />
+                {idx < uangMasuk.length - 1 && (
+                  <Text style={styles.plusSymbolVertical}>+</Text>
+                )}
+              </React.Fragment>
+            ))}
+          </View>
+        )}
+
+        {/* Pengeluaran dan Kembalian */}
+        {(pengeluaran.length > 0 || kembalian.length > 0) && (
+          <>
+            <Text style={styles.operatorText}>-</Text>
+
+            {pengeluaran.length > 0 && (
+              <View style={[styles.rowWrap, { marginTop: 10 }]}>
+                {pengeluaran.map((item, idx) => (
+                  <Image
+                    key={`out-${idx}`}
+                    source={getImageByNominal(item.nominal1 || item.nominal2)}
+                    style={styles.uangImage}
+                  />
+                ))}
+              </View>
+            )}
+
+            {kembalian.length > 0 && (
+              <View style={[styles.rowWrap, { marginTop: 10 }]}>
+                {kembalian.map((item, idx) => (
+                  <Image
+                    key={`kembali-${idx}`}
+                    source={getImageByNominal(item.nominal1 || item.nominal2)}
+                    style={styles.uangImageVertical}
+                  />
+                ))}
+              </View>
+            )}
+          </>
+        )}
       </ScrollView>
 
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.backText}>Kembali</Text>
-      </TouchableOpacity>
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Text style={styles.backText}>Kembali</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+          <Image
+            source={require('../../assets/icon-reset.png')}
+            style={styles.resetIcon}
+          />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -115,7 +141,7 @@ const styles = StyleSheet.create({
   topTotalContainer: {
     backgroundColor: '#fb5607',
     borderRadius: 30,
-    paddingVertical: 10,
+    paddingVertical: 15,
     paddingHorizontal: 30,
     flexDirection: 'row',
     alignItems: 'center',
@@ -133,72 +159,74 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     width: '100%',
   },
-  transactionContainer: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  operationRow: {
+  rowWrap: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
     justifyContent: 'center',
-    marginVertical: 5,
   },
   uangImage: {
-    width: windowWidth / 2.5,
+    width: windowWidth / 3,
     height: 80,
     resizeMode: 'contain',
-    marginHorizontal: 10,
+    margin: 5,
+  },
+  uangImageVertical: {
+    width: windowWidth / 2,
+    height: 80,
+    resizeMode: 'contain',
+    marginVertical: 4,
+  },
+  plusSymbolVertical: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#fb5607',
+    marginVertical: 6,
+    textAlign: 'center',
   },
   operatorText: {
-    fontSize: 40,
+    fontSize: 28,
     fontWeight: 'bold',
+    marginTop: 10,
     color: '#000',
-    marginHorizontal: 15,
   },
   coinIcon: {
     width: 25,
     height: 25,
     marginRight: 10,
   },
-  backButton: {
-    marginTop: 10,
-    backgroundColor: '#fb5607',
+  resetButton: {
+    backgroundColor: '#ef4444',
     borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 60,
+    padding: 10,
+    width: 120,
+    alignItems: 'center',
+  },
+  resetIcon: {
+    width: 21.7,
+    height: 25,
+    tintColor: 'white',
+  },
+  backButton: {
+    backgroundColor: '#a3a635',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    alignItems: 'center',
   },
   backText: {
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
   },
-  transactionContainer: {
-    alignItems: 'center',
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
     width: '100%',
   },
-  pairContainer: {
-    marginBottom: 10,
-    alignItems: 'center',
-  },
-  horizontalPair: {
-    flexDirection: 'row',
+  columnWrap: {
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  singleItemContainer: {
-    alignItems: 'center',
-    marginTop: 5,
-  },
-  uangImage: {
-    width: windowWidth / 3,
-    height: 70,
-    resizeMode: 'contain',
-    marginHorizontal: 5,
-  },
-  operatorText: {
-    fontSize: 30,
-    fontWeight: 'bold',
-    color: '#000',
-    marginHorizontal: 10,
   },
 });

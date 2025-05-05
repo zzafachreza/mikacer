@@ -17,7 +17,8 @@ export default function Home({ navigation, route }) {
   const [pendingOperator, setPendingOperator] = useState(null);
   const [riwayatTransaksi, setRiwayatTransaksi] = useState([]);
   const [selectedNominal, setSelectedNominal] = useState(null);
-  
+  const [keranjangHighlight, setKeranjangHighlight] = useState(false);
+  const [isInKembalianMode, setIsInKembalianMode] = useState(false); // ✅ FLAG
 
   const uang = [
     { nominal: 500, src: require('../../assets/500.png') },
@@ -31,87 +32,113 @@ export default function Home({ navigation, route }) {
   ];
 
   const handleOperator = (operator) => {
-    const valueToUse = currentNominal !== 0 ? currentNominal : total;
-    setPreviousTotal(valueToUse);
+    setPreviousTotal(total);
     setPendingOperator(operator);
     setCurrentNominal(0);
     setSelectedNominal(null);
   };
 
-  const handleEqual = () => {
-    if (pendingOperator) {
-      const result = pendingOperator === '+'
-        ? previousTotal + currentNominal
-        : previousTotal - currentNominal;
-      
-      const newTransaction = {
-        nominal1: previousTotal,
-        nominal2: currentNominal,
-        operator: pendingOperator, // Pastikan operator disimpan
-        result,
-      };
-      
-      setRiwayatTransaksi([...riwayatTransaksi, newTransaction]);
-      setTotal(result);
-    } else if (currentNominal > 0) {
-      const newTransaction = {
-        nominal1: currentNominal,
-        nominal2: 0,
-        operator: null,
-        result: currentNominal,
-      };
-      setRiwayatTransaksi([...riwayatTransaksi, newTransaction]);
-      setTotal(currentNominal);
+  const handleNominalClick = (nominal) => {
+    setCurrentNominal(nominal);
+    setSelectedNominal(nominal);
+    if (!pendingOperator && total === 0 && riwayatTransaksi.length === 0) {
+      setTotal(nominal);
     }
-  
-    setCurrentNominal(0);
+  };
+
+  const handleEqual = () => {
+    if (!pendingOperator || currentNominal === 0) return;
+
+    const baseValue = previousTotal !== 0 ? previousTotal : total;
+
+    const result = pendingOperator === '+'
+      ? baseValue + currentNominal
+      : baseValue - currentNominal;
+
+    const transaksi = {
+      nominal1: baseValue,
+      nominal2: currentNominal,
+      operator: pendingOperator,
+      result
+    };
+
+    setRiwayatTransaksi([...riwayatTransaksi, transaksi]);
+    setTotal(result);
     setPendingOperator(null);
+    setCurrentNominal(0);
     setSelectedNominal(null);
+    setPreviousTotal(0);
   };
 
   const handleKeranjang = () => {
-    if (pendingOperator === '-') {
-      // Langsung proses pengurangan tanpa perlu klik '='
-      const result = total - currentNominal;
-      const newTransaction = {
-        nominal1: total,
-        nominal2: currentNominal,
-        operator: '-',
-        result: result,
-      };
-      setRiwayatTransaksi([...riwayatTransaksi, newTransaction]);
-      setTotal(result);
-    } else {
-      // Logika normal untuk penambahan
-      const newTransaction = {
+    if (currentNominal === 0 && total === 0) return;
+
+    const alreadyAdded = total === currentNominal && riwayatTransaksi.length === 0 && !pendingOperator;
+    if (alreadyAdded) {
+      const transaksi = {
+        operator: '+',
         nominal1: currentNominal,
-        nominal2: 0,
-        operator: null,
         result: currentNominal,
+        isKembalian: false,
       };
-      setRiwayatTransaksi([...riwayatTransaksi, newTransaction]);
-      setTotal(prev => prev + currentNominal);
+
+      setRiwayatTransaksi([transaksi]);
+      setCurrentNominal(0);
+      setSelectedNominal(null);
+      return;
     }
-  
-    // Reset states
+
+    let result = total;
+    let operatorToUse = pendingOperator || '+';
+
+    if (pendingOperator === '+') {
+      result += currentNominal;
+    } else if (pendingOperator === '-') {
+      result -= currentNominal;
+      setIsInKembalianMode(true); // ✅ MASUK MODE KEMBALIAN
+    } else {
+      result += currentNominal;
+    }
+
+    const transaksi = {
+      operator: operatorToUse,
+      nominal1: currentNominal,
+      result,
+      isKembalian: isInKembalianMode, // ✅ Cek flag kembalian
+    };
+
+    const updated = [...riwayatTransaksi, transaksi];
+
+    setRiwayatTransaksi(updated);
+    setTotal(result);
     setCurrentNominal(0);
     setSelectedNominal(null);
     setPendingOperator(null);
+    setPreviousTotal(0);
+
+    if (isInKembalianMode) {
+      setIsInKembalianMode(false); // ✅ Keluar dari mode kembalian setelah masukin
+    }
   };
-  
-  const reset = () => {
+
+  const resetAll = () => {
     setTotal(0);
     setCurrentNominal(0);
     setPreviousTotal(0);
     setPendingOperator(null);
     setRiwayatTransaksi([]);
     setSelectedNominal(null);
+    setIsInKembalianMode(false); // ✅ reset juga
   };
 
   const goToDetail = () => {
     navigation.navigate('Detail', {
       riwayatTransaksi,
-      total
+      total,
+      onReset: () => {
+        setRiwayatTransaksi([]);
+        setTotal(0);
+      }
     });
   };
 
@@ -119,11 +146,14 @@ export default function Home({ navigation, route }) {
     const newNominal = selectedNominal === nominal ? 0 : nominal;
     setCurrentNominal(newNominal);
     setSelectedNominal(newNominal);
+    if (!pendingOperator && total === 0 && riwayatTransaksi.length === 0) {
+      setTotal(newNominal);
+    }
   };
 
   useEffect(() => {
     if (route.params?.resetData) {
-      reset();
+      resetAll();
     }
   }, [route.params]);
 
@@ -131,54 +161,50 @@ export default function Home({ navigation, route }) {
     <View style={styles.container}>
       <Text style={styles.title}>MIKACER</Text>
 
-      {/* Tampilan Total */}
       <View style={styles.totalContainer}>
-        <Image
-          source={require('../../assets/icon-coin.png')}
-          style={styles.coinIcon}
-        />
-       <Text style={styles.totalText}>
-  {formatRupiah(selectedNominal !== null ? currentNominal : total)}
-</Text>
+        <Image source={require('../../assets/icon-coin.png')} style={styles.coinIcon} />
+        <Text style={styles.totalText}>
+          {formatRupiah(pendingOperator ? currentNominal : total)}
+        </Text>
       </View>
 
-      <View style={{
-        flexDirection:"row",
-        justifyContent:"space-between",
-        alignItems:"center",  
-      }}>
-        <TouchableOpacity 
-          style={[styles.operatorButton, { backgroundColor: '#f9a8d4' }]} 
+      <View style={styles.operatorRow}>
+        <TouchableOpacity
+          style={[styles.operatorButton, {
+            backgroundColor: '#f9a8d4',
+            borderWidth: pendingOperator === '+' ? 3 : 0,
+            borderColor: '#fb5607'
+          }]}
           onPress={() => handleOperator('+')}
         >
           <Text style={styles.symbol}>+</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.operatorButton, { backgroundColor: '#fde68a' }]} 
+        <TouchableOpacity
+          style={[styles.operatorButton, {
+            backgroundColor: '#fde68a',
+            borderWidth: pendingOperator === '-' ? 3 : 0,
+            borderColor: '#fb5607'
+          }]}
           onPress={() => handleOperator('-')}
         >
           <Text style={styles.symbol}>-</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={{
-        flexDirection:"row",
-        justifyContent:"space-between",
-        alignItems:"center",
-        marginTop:5
-      }}>
-        <TouchableOpacity 
-          style={[styles.button, { backgroundColor: '#c4b5fd' }]} 
+      <View style={styles.actionRow}>
+        <TouchableOpacity
+          style={[styles.button, {
+            backgroundColor: '#c4b5fd',
+            borderWidth: keranjangHighlight ? 3 : 0,
+            borderColor: keranjangHighlight ? '#fb5607' : 'transparent'
+          }]}
           onPress={handleKeranjang}
         >
-          <Image
-            source={require('../../assets/icon-belanja.png')}
-            style={styles.icon}
-          />
+          <Image source={require('../../assets/icon-belanja.png')} style={styles.icon} />
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.button, { backgroundColor: '#7dd3fc' }]} 
+
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: '#7dd3fc' }]}
           onPress={handleEqual}
         >
           <Text style={styles.symbol}>=</Text>
@@ -187,14 +213,14 @@ export default function Home({ navigation, route }) {
 
       <ScrollView contentContainerStyle={styles.moneyGrid}>
         {uang.map((item, index) => (
-          <TouchableOpacity 
-            key={index} 
+          <TouchableOpacity
+            key={index}
             onPress={() => handleSelectNominal(item.nominal)}
           >
             <Image
               source={item.src}
               style={[
-                styles.uangImage, 
+                styles.uangImage,
                 selectedNominal === item.nominal && styles.selectedUang
               ]}
             />
@@ -203,20 +229,11 @@ export default function Home({ navigation, route }) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity 
-          style={styles.detailButton} 
-          onPress={goToDetail}
-        >
+        <TouchableOpacity style={styles.detailButton} onPress={goToDetail}>
           <Text style={styles.detailText}>Lihat Detail</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.resetButton} 
-          onPress={reset}
-        >
-          <Image
-            source={require('../../assets/icon-reset.png')}
-            style={styles.resetIcon}
-          />
+        <TouchableOpacity style={styles.resetButton} onPress={resetAll}>
+          <Image source={require('../../assets/icon-reset.png')} style={styles.resetIcon} />
         </TouchableOpacity>
       </View>
     </View>
@@ -241,11 +258,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    width:'100%',
+    width: '100%',
     justifyContent: 'center',
-    height:80,
-    marginBottom:10,
-    marginTop:20,
+    height: 80,
+    marginBottom: 10,
+    marginTop: 20,
   },
   coinIcon: {
     width: 25,
@@ -257,13 +274,24 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
   },
+  operatorRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 5
+  },
   button: {
     width: 169,
     height: 71,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal:5
+    marginHorizontal: 5
   },
   operatorButton: {
     width: 169,
@@ -271,7 +299,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal:5
+    marginHorizontal: 5
   },
   symbol: {
     fontSize: 30,
@@ -305,7 +333,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 0,
     width: '100%',
-    padding:10
+    padding: 10
   },
   detailButton: {
     backgroundColor: '#a3a635',
@@ -317,16 +345,14 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
-    alignItems:"center",
-    justifyContent:"center",
   },
   resetButton: {
     backgroundColor: '#ef4444',
     borderRadius: 10,
     padding: 10,
-    width:140,
-    alignItems:"center",
-    justifyContent:"center"
+    width: 140,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   resetIcon: {
     width: 21.7,

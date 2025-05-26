@@ -82,7 +82,7 @@ export default function Splash({ navigation }) {
             useNativeDriver: true,
           }),
         ]).start(() => {
-          navigation.replace('Login');
+          navigation.replace('Home'); // Ganti ke MainApp setelah animasi selesai
         });
       }, 1200); // tampil loading dulu 1.2 detik
     });

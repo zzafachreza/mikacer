@@ -127,7 +127,7 @@ export default function DetailPage({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f7ff9c',
+    backgroundColor: colors.primary,
     padding: 20,
     alignItems: 'center',
   },

@@ -243,7 +243,7 @@ export default function Home({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f7ff9c',
+    backgroundColor: colors.primary,
     padding: 5,
     alignItems: 'center',
   },

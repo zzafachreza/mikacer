@@ -10,16 +10,32 @@ import {
 import { colors, fonts, windowWidth } from '../../utils';
 import { formatRupiah } from '../../utils/currency';
 import Tts from 'react-native-tts';
+import Voice from '@react-native-voice/voice';
+import { Icon } from 'react-native-elements';
 
 export default function Home({ navigation, route }) {
   Tts.setDefaultRate(0.6);
   Tts.setDefaultLanguage('in-ID');
 
-  Tts.voices().then(voices => {
-    voices.map(i => {
-      console.log(i.language)
-    })
-  });
+
+
+  const [text, setText] = useState('');
+  const [resultAngka, setResultAngka] = useState(null);
+  const [isListening, setIsListening] = useState(false);
+
+  // Konversi kata-kata sederhana ke angka
+  const kataKeAngka = (kata) => {
+    const peta = {
+      "nol": 0, "satu": 1, "dua": 2, "tiga": 3, "empat": 4,
+      "lima": 5, "enam": 6, "tujuh": 7, "delapan": 8, "sembilan": 9,
+      "sepuluh": 10, "sebelas": 11, "seratus": 100, "seribu": 1000
+      // Untuk kasus kompleks, bisa dikembangkan lebih lanjut
+    };
+
+    if (kata in peta) return peta[kata];
+    return 'Tidak dikenali';
+  };
+
 
 
   const [total, setTotal] = useState(0);
@@ -76,7 +92,7 @@ export default function Home({ navigation, route }) {
       result
     };
 
-    setRiwayatTransaksi([...riwayatTransaksi, transaksi]);
+    // setRiwayatTransaksi([...riwayatTransaksi, transaksi]);
     setTotal(result);
     setPendingOperator(null);
     setCurrentNominal(0);
@@ -180,6 +196,43 @@ export default function Home({ navigation, route }) {
     }
   }, [route.params]);
 
+  const isAngka = (value) => {
+    return !isNaN(value) && Number.isFinite(Number(value));
+  };
+
+  useEffect(() => {
+    Voice.onSpeechResults = (event) => {
+      const spokenText = event.value[0].toLowerCase();
+
+      let gabung = event.value[0].split(" ");
+      let uang = gabung[0].replace(".", "");
+
+      console.log(uang)
+
+      if (isAngka(uang)) {
+        Tts.speak(convertNumberToWords(uang));
+
+        handleSelectNominal(parseInt(uang));
+
+      } else {
+        Tts.speak('Jumlah tidak dikenali')
+      }
+
+      // setText(spokenText);
+      // const angka = kataKeAngka(spokenText);
+      // setResultAngka(angka);
+      // setIsListening(false);
+    };
+
+    Voice.onSpeechEnd = () => {
+      setIsListening(false);
+    };
+
+    return () => {
+      Voice.destroy().then(Voice.removeAllListeners);
+    };
+  }, []);
+
   function convertNumberToWords(n) {
     const satuan = ["", "satu", "dua", "tiga", "empat", "lima", "enam", "tujuh", "delapan", "sembilan", "sepuluh", "sebelas"];
 
@@ -209,6 +262,18 @@ export default function Home({ navigation, route }) {
     return terbilang(n).replace(/\s+/g, " ").trim();
   }
 
+
+  const mulaiDengar = async () => {
+    try {
+      setIsListening(true);
+      setText('');
+      setResultAngka(null);
+      await Voice.start('id-ID');
+    } catch (e) {
+      console.error(e);
+      setIsListening(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -302,10 +367,28 @@ export default function Home({ navigation, route }) {
         <TouchableOpacity style={styles.detailButton} onPress={goToDetail}>
           <Text style={styles.detailText}>Lihat Detail</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={{
+          width: windowWidth / 3,
+          backgroundColor: colors.secondary,
+          padding: 10,
+          // height: 100,
+          borderRadius: 10,
+        }} onPress={mulaiDengar}
+          disabled={isListening}
+        >
+          <Icon type='ionicon' name='mic' color={colors.white} />
+          <Text style={{
+            fontFamily: fonts.secondary[600],
+            fontSize: 10,
+            textAlign: 'center',
+            color: colors.white
+          }}>{isListening ? 'Mendengarkan...' : 'Tekan untuk Bicara'}</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.resetButton} onPress={resetAll}>
           <Image source={require('../../assets/icon-reset.png')} style={styles.resetIcon} />
         </TouchableOpacity>
       </View>
+
     </View>
   );
 }
@@ -406,10 +489,12 @@ const styles = StyleSheet.create({
     padding: 10
   },
   detailButton: {
+    width: windowWidth / 4,
     backgroundColor: '#a3a635',
     borderRadius: 14,
     paddingVertical: 12,
-    paddingHorizontal: 30,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   detailText: {
     color: 'white',
@@ -417,10 +502,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   resetButton: {
+    width: windowWidth / 4,
     backgroundColor: '#ef4444',
     borderRadius: 10,
     padding: 10,
-    width: 140,
     alignItems: 'center',
     justifyContent: 'center'
   },

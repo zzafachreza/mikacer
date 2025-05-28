@@ -1,7 +1,7 @@
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { colors, fonts, windowWidth } from '../../utils';
-
+import Tts from 'react-native-tts';
 const formatRupiah = (amount) => {
   return 'Rp' + (amount || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 };
@@ -9,6 +9,35 @@ const formatRupiah = (amount) => {
 export default function DetailPage({ route, navigation }) {
   const [riwayat, setRiwayat] = useState(route.params?.riwayatTransaksi || []);
   const [total, setTotal] = useState(0);
+
+  function convertNumberToWords(n) {
+    const satuan = ["", "satu", "dua", "tiga", "empat", "lima", "enam", "tujuh", "delapan", "sembilan", "sepuluh", "sebelas"];
+
+    const terbilang = (x) => {
+      x = Math.floor(x);
+      if (x < 12) {
+        return satuan[x];
+      } else if (x < 20) {
+        return satuan[x - 10] + " belas";
+      } else if (x < 100) {
+        return terbilang(x / 10) + " puluh " + terbilang(x % 10);
+      } else if (x < 200) {
+        return "seratus " + terbilang(x - 100);
+      } else if (x < 1000) {
+        return terbilang(x / 100) + " ratus " + terbilang(x % 100);
+      } else if (x < 2000) {
+        return "seribu " + terbilang(x - 1000);
+      } else if (x < 1000000) {
+        return terbilang(x / 1000) + " ribu " + terbilang(x % 1000);
+      } else if (x < 1000000000) {
+        return terbilang(x / 1000000) + " juta " + terbilang(x % 1000000);
+      } else {
+        return "Angka terlalu besar";
+      }
+    };
+
+    return terbilang(n).replace(/\s+/g, " ").trim();
+  }
 
   useEffect(() => {
     let calculatedTotal = 0;
@@ -20,6 +49,8 @@ export default function DetailPage({ route, navigation }) {
       }
       // Kembalian tidak dihitung
     });
+    console.log(calculatedTotal);
+    Tts.speak(convertNumberToWords(calculatedTotal))
     setTotal(calculatedTotal);
   }, [riwayat]);
 

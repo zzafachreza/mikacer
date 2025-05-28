@@ -9,8 +9,19 @@ import {
 } from 'react-native';
 import { colors, fonts, windowWidth } from '../../utils';
 import { formatRupiah } from '../../utils/currency';
+import Tts from 'react-native-tts';
 
 export default function Home({ navigation, route }) {
+  Tts.setDefaultRate(0.6);
+  Tts.setDefaultLanguage('in-ID');
+
+  Tts.voices().then(voices => {
+    voices.map(i => {
+      console.log(i.language)
+    })
+  });
+
+
   const [total, setTotal] = useState(0);
   const [currentNominal, setCurrentNominal] = useState(0);
   const [previousTotal, setPreviousTotal] = useState(0);
@@ -47,6 +58,9 @@ export default function Home({ navigation, route }) {
   };
 
   const handleEqual = () => {
+
+
+    Tts.speak('sama dengan');
     if (!pendingOperator || currentNominal === 0) return;
 
     const baseValue = previousTotal !== 0 ? previousTotal : total;
@@ -68,9 +82,18 @@ export default function Home({ navigation, route }) {
     setCurrentNominal(0);
     setSelectedNominal(null);
     setPreviousTotal(0);
+    console.log(result);
+    if (result > 0) {
+      Tts.speak(convertNumberToWords(result));
+    } else {
+      Tts.speak("Hitungan Kamu Minus !");
+    }
   };
 
   const handleKeranjang = () => {
+
+
+    Tts.speak('masuk keranjang')
     if (currentNominal === 0 && total === 0) return;
 
     const alreadyAdded = total === currentNominal && riwayatTransaksi.length === 0 && !pendingOperator;
@@ -157,6 +180,36 @@ export default function Home({ navigation, route }) {
     }
   }, [route.params]);
 
+  function convertNumberToWords(n) {
+    const satuan = ["", "satu", "dua", "tiga", "empat", "lima", "enam", "tujuh", "delapan", "sembilan", "sepuluh", "sebelas"];
+
+    const terbilang = (x) => {
+      x = Math.floor(x);
+      if (x < 12) {
+        return satuan[x];
+      } else if (x < 20) {
+        return satuan[x - 10] + " belas";
+      } else if (x < 100) {
+        return terbilang(x / 10) + " puluh " + terbilang(x % 10);
+      } else if (x < 200) {
+        return "seratus " + terbilang(x - 100);
+      } else if (x < 1000) {
+        return terbilang(x / 100) + " ratus " + terbilang(x % 100);
+      } else if (x < 2000) {
+        return "seribu " + terbilang(x - 1000);
+      } else if (x < 1000000) {
+        return terbilang(x / 1000) + " ribu " + terbilang(x % 1000);
+      } else if (x < 1000000000) {
+        return terbilang(x / 1000000) + " juta " + terbilang(x % 1000000);
+      } else {
+        return "Angka terlalu besar";
+      }
+    };
+
+    return terbilang(n).replace(/\s+/g, " ").trim();
+  }
+
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>MIKACER</Text>
@@ -175,7 +228,12 @@ export default function Home({ navigation, route }) {
             borderWidth: pendingOperator === '+' ? 3 : 0,
             borderColor: '#fb5607'
           }]}
-          onPress={() => handleOperator('+')}
+          onPress={() => {
+            handleOperator('+')
+
+            Tts.speak('ditambah');
+          }
+          }
         >
           <Text style={styles.symbol}>+</Text>
         </TouchableOpacity>
@@ -185,7 +243,12 @@ export default function Home({ navigation, route }) {
             borderWidth: pendingOperator === '-' ? 3 : 0,
             borderColor: '#fb5607'
           }]}
-          onPress={() => handleOperator('-')}
+          onPress={() => {
+            handleOperator('-')
+
+            Tts.speak('dikurang');
+          }
+          }
         >
           <Text style={styles.symbol}>-</Text>
         </TouchableOpacity>
@@ -215,7 +278,14 @@ export default function Home({ navigation, route }) {
         {uang.map((item, index) => (
           <TouchableOpacity
             key={index}
-            onPress={() => handleSelectNominal(item.nominal)}
+            onPress={() => {
+              handleSelectNominal(item.nominal);
+              console.log(item.nominal);
+              let terbilang = convertNumberToWords(item.nominal);
+              console.log(terbilang);
+
+              Tts.speak(terbilang);
+            }}
           >
             <Image
               source={item.src}

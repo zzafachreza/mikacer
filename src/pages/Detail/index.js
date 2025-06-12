@@ -1,42 +1,63 @@
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import React, { useEffect, useState } from 'react';
-import { colors, fonts, windowWidth } from '../../utils';
+import {
+  View,
+  Text,
+  Image,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
+import React, {useEffect, useState} from 'react';
+import {colors, fonts, windowWidth} from '../../utils';
 import Tts from 'react-native-tts';
-const formatRupiah = (amount) => {
-  return 'Rp' + (amount || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+const formatRupiah = amount => {
+  return 'Rp' + (amount || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
-export default function DetailPage({ route, navigation }) {
+export default function DetailPage({route, navigation}) {
   const [riwayat, setRiwayat] = useState(route.params?.riwayatTransaksi || []);
   const [total, setTotal] = useState(0);
 
   function convertNumberToWords(n) {
-    const satuan = ["", "satu", "dua", "tiga", "empat", "lima", "enam", "tujuh", "delapan", "sembilan", "sepuluh", "sebelas"];
+    const satuan = [
+      '',
+      'satu',
+      'dua',
+      'tiga',
+      'empat',
+      'lima',
+      'enam',
+      'tujuh',
+      'delapan',
+      'sembilan',
+      'sepuluh',
+      'sebelas',
+    ];
 
-    const terbilang = (x) => {
-      x = Math.floor(x);
+    const terbilang = x => {
+      x = Math.abs(Math.floor(x));
       if (x < 12) {
         return satuan[x];
       } else if (x < 20) {
-        return satuan[x - 10] + " belas";
+        return satuan[x - 10] + ' belas';
       } else if (x < 100) {
-        return terbilang(x / 10) + " puluh " + terbilang(x % 10);
+        return terbilang(x / 10) + ' puluh ' + terbilang(x % 10);
       } else if (x < 200) {
-        return "seratus " + terbilang(x - 100);
+        return 'seratus ' + terbilang(x - 100);
       } else if (x < 1000) {
-        return terbilang(x / 100) + " ratus " + terbilang(x % 100);
+        return terbilang(x / 100) + ' ratus ' + terbilang(x % 100);
       } else if (x < 2000) {
-        return "seribu " + terbilang(x - 1000);
+        return 'seribu ' + terbilang(x - 1000);
       } else if (x < 1000000) {
-        return terbilang(x / 1000) + " ribu " + terbilang(x % 1000);
+        return terbilang(x / 1000) + ' ribu ' + terbilang(x % 1000);
       } else if (x < 1000000000) {
-        return terbilang(x / 1000000) + " juta " + terbilang(x % 1000000);
+        return terbilang(x / 1000000) + ' juta ' + terbilang(x % 1000000);
       } else {
-        return "Angka terlalu besar";
+        return 'Angka terlalu besar';
       }
     };
 
-    return terbilang(n).replace(/\s+/g, " ").trim();
+    return terbilang(n).replace(/\s+/g, ' ').trim();
   }
 
   useEffect(() => {
@@ -50,11 +71,16 @@ export default function DetailPage({ route, navigation }) {
       // Kembalian tidak dihitung
     });
     console.log(calculatedTotal);
-    Tts.speak(convertNumberToWords(calculatedTotal))
+    if (calculatedTotal >= 0) {
+      Tts.speak(convertNumberToWords(calculatedTotal));
+    } else {
+      Tts.speak('Minus ' + convertNumberToWords(calculatedTotal));
+    }
+
     setTotal(calculatedTotal);
   }, [riwayat]);
 
-  const getImageByNominal = (nominal) => {
+  const getImageByNominal = nominal => {
     const imageMap = {
       500: require('../../assets/500.png'),
       1000: require('../../assets/1000.png'),
@@ -68,9 +94,13 @@ export default function DetailPage({ route, navigation }) {
     return imageMap[nominal] || null;
   };
 
-  const uangMasuk = riwayat.filter(item => item.operator === '+' && !item.isKembalian);
+  const uangMasuk = riwayat.filter(
+    item => item.operator === '+' && !item.isKembalian,
+  );
   const pengeluaran = riwayat.filter(item => item.operator === '-');
-  const kembalian = riwayat.filter(item => item.operator === '+' && item.isKembalian);
+  const kembalian = riwayat.filter(
+    item => item.operator === '+' && item.isKembalian,
+  );
 
   const handleReset = () => {
     Alert.alert('Reset Berhasil', 'Semua data transaksi telah dikosongkan.');
@@ -85,7 +115,10 @@ export default function DetailPage({ route, navigation }) {
       <Text style={styles.header}>DETAIL</Text>
 
       <View style={styles.topTotalContainer}>
-        <Image source={require('../../assets/icon-coin.png')} style={styles.coinIcon} />
+        <Image
+          source={require('../../assets/icon-coin.png')}
+          style={styles.coinIcon}
+        />
         <Text style={styles.topTotalText}>{formatRupiah(total)}</Text>
       </View>
 
@@ -113,7 +146,7 @@ export default function DetailPage({ route, navigation }) {
             <Text style={styles.operatorText}>-</Text>
 
             {pengeluaran.length > 0 && (
-              <View style={[styles.rowWrap, { marginTop: 10 }]}>
+              <View style={[styles.rowWrap, {marginTop: 10}]}>
                 {pengeluaran.map((item, idx) => (
                   <Image
                     key={`out-${idx}`}
@@ -125,7 +158,7 @@ export default function DetailPage({ route, navigation }) {
             )}
 
             {kembalian.length > 0 && (
-              <View style={[styles.rowWrap, { marginTop: 10 }]}>
+              <View style={[styles.rowWrap, {marginTop: 10}]}>
                 {kembalian.map((item, idx) => (
                   <Image
                     key={`kembali-${idx}`}
@@ -140,7 +173,9 @@ export default function DetailPage({ route, navigation }) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}>
           <Text style={styles.backText}>Kembali</Text>
         </TouchableOpacity>
 

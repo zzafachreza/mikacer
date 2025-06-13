@@ -105,8 +105,8 @@ export default function Home({navigation, route}) {
     setSelectedNominal(null);
     setPreviousTotal(0);
     console.log(result);
-    if (result > 0) {
-      Tts.speak(convertNumberToWords(result));
+    if (Math.abs(result) > 0) {
+      Tts.speak(convertNumberToWords(Math.abs(result)));
     } else {
       console.log(Math.abs(result));
       Tts.speak('Minus ' + convertNumberToWords(Math.abs(result)));
@@ -191,6 +191,7 @@ export default function Home({navigation, route}) {
   };
 
   const handleSelectNominal = nominal => {
+    console.log('nominal', nominal);
     const newNominal = selectedNominal === nominal ? 0 : nominal;
     setCurrentNominal(newNominal);
     setSelectedNominal(newNominal);
@@ -212,7 +213,7 @@ export default function Home({navigation, route}) {
   useEffect(() => {
     Voice.onSpeechResults = event => {
       const spokenText = event.value[0].toLowerCase();
-
+      console.log('hasil suara', spokenText);
       let gabung = event.value[0].split(' ');
       let uang = gabung[0].replace('.', '');
 
@@ -220,8 +221,11 @@ export default function Home({navigation, route}) {
 
       if (isAngka(uang)) {
         Tts.speak(convertNumberToWords(uang));
+        console.log('suara', uang);
 
-        handleSelectNominal(parseInt(uang));
+        handleSelectNominal(parseFloat(uang));
+        // setCurrentNominal(parseInt(uang));
+        // setSelectedNominal(parseInt(uang));
       } else {
         Tts.speak('Jumlah tidak dikenali');
       }
@@ -305,7 +309,9 @@ export default function Home({navigation, route}) {
           style={styles.coinIcon}
         />
         <Text style={styles.totalText}>
-          {formatRupiah(pendingOperator ? currentNominal : total)}
+          {formatRupiah(
+            pendingOperator ? Math.abs(currentNominal) : Math.abs(total),
+          )}
         </Text>
       </View>
 
@@ -374,9 +380,9 @@ export default function Home({navigation, route}) {
             key={index}
             onPress={() => {
               handleSelectNominal(item.nominal);
-              console.log(item.nominal);
+              // console.log(item.nominal);
               let terbilang = convertNumberToWords(item.nominal);
-              console.log(terbilang);
+              // console.log(terbilang);
 
               Tts.speak(terbilang);
             }}>
@@ -489,13 +495,16 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   symbol: {
-    fontSize: 50,
+    lineHeight: 65,
+    fontSize: 60,
     color: '#000',
+    textShadowColor: 'black',
+
     fontWeight: 'bold',
   },
   icon: {
-    width: 35,
-    height: 35,
+    width: 45,
+    height: 45,
     tintColor: '#000',
   },
   moneyGrid: {

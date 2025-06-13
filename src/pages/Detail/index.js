@@ -71,8 +71,8 @@ export default function DetailPage({route, navigation}) {
       // Kembalian tidak dihitung
     });
     console.log(calculatedTotal);
-    if (calculatedTotal >= 0) {
-      Tts.speak(convertNumberToWords(calculatedTotal));
+    if (Math.abs(calculatedTotal) >= 0) {
+      Tts.speak(convertNumberToWords(Math.abs(calculatedTotal)));
     } else {
       Tts.speak('Minus ' + convertNumberToWords(calculatedTotal));
     }
@@ -119,7 +119,7 @@ export default function DetailPage({route, navigation}) {
           source={require('../../assets/icon-coin.png')}
           style={styles.coinIcon}
         />
-        <Text style={styles.topTotalText}>{formatRupiah(total)}</Text>
+        <Text style={styles.topTotalText}>{formatRupiah(Math.abs(total))}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollArea}>

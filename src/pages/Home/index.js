@@ -80,6 +80,8 @@ export default function Home({navigation, route}) {
     }
   };
 
+  const [DUIT, setDUIT] = useState([]);
+
   const handleEqual = () => {
     Tts.speak('sama dengan');
     if (!pendingOperator || currentNominal === 0) return;
@@ -91,20 +93,28 @@ export default function Home({navigation, route}) {
         ? baseValue + currentNominal
         : baseValue - currentNominal;
 
-    const transaksi = {
-      nominal1: baseValue,
-      nominal2: currentNominal,
-      operator: pendingOperator,
-      result,
-    };
-
-    // setRiwayatTransaksi([...riwayatTransaksi, transaksi]);
     setTotal(result);
     setPendingOperator(null);
     setCurrentNominal(0);
     setSelectedNominal(null);
     setPreviousTotal(0);
     console.log(result);
+
+    const transaksi = {
+      nominal1: baseValue,
+      nominal2: currentNominal,
+      operator: pendingOperator,
+      result: Math.abs(result),
+      tipe: 1,
+    };
+
+    console.log(transaksi);
+    console.log(total);
+
+    console.log([...riwayatTransaksi, transaksi]);
+
+    setRiwayatTransaksi([...riwayatTransaksi, transaksi]);
+
     if (Math.abs(result) > 0) {
       Tts.speak(convertNumberToWords(Math.abs(result)));
     } else {
@@ -128,6 +138,7 @@ export default function Home({navigation, route}) {
         nominal1: currentNominal,
         result: currentNominal,
         isKembalian: false,
+        tipe: 0,
       };
 
       setRiwayatTransaksi([transaksi]);
@@ -153,6 +164,7 @@ export default function Home({navigation, route}) {
       nominal1: currentNominal,
       result,
       isKembalian: isInKembalianMode, // ✅ Cek flag kembalian
+      tipe: 0,
     };
 
     const updated = [...riwayatTransaksi, transaksi];
@@ -171,6 +183,7 @@ export default function Home({navigation, route}) {
 
   const resetAll = () => {
     setTotal(0);
+    setDUIT([]);
     setCurrentNominal(0);
     setPreviousTotal(0);
     setPendingOperator(null);
@@ -180,9 +193,15 @@ export default function Home({navigation, route}) {
   };
 
   const goToDetail = () => {
+    console.log({
+      riwayatTransaksi,
+      total,
+      DUIT,
+    });
     navigation.navigate('Detail', {
       riwayatTransaksi,
       total,
+      DUIT,
       onReset: () => {
         setRiwayatTransaksi([]);
         setTotal(0);
@@ -192,9 +211,21 @@ export default function Home({navigation, route}) {
 
   const handleSelectNominal = nominal => {
     console.log('nominal', nominal);
+    console.log(
+      'uang',
+      uang.filter(i => i.nominal == nominal),
+    );
+    if (uang.filter(i => i.nominal == nominal).length > 0) {
+      console.log('NORMAL');
+    } else {
+      console.log('TIDAK NORMAL');
+    }
     const newNominal = selectedNominal === nominal ? 0 : nominal;
     setCurrentNominal(newNominal);
     setSelectedNominal(newNominal);
+    const updated = [...DUIT, newNominal];
+    setDUIT(updated);
+
     if (!pendingOperator && total === 0 && riwayatTransaksi.length === 0) {
       setTotal(newNominal);
     }
@@ -216,8 +247,6 @@ export default function Home({navigation, route}) {
       console.log('hasil suara', spokenText);
       let gabung = event.value[0].split(' ');
       let uang = gabung[0].replace('.', '');
-
-      console.log(uang);
 
       if (isAngka(uang)) {
         Tts.speak(convertNumberToWords(uang));
@@ -495,16 +524,16 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   symbol: {
-    lineHeight: 65,
-    fontSize: 60,
+    lineHeight: 70,
+    fontSize: 65,
     color: '#000',
     textShadowColor: 'black',
 
     fontWeight: 'bold',
   },
   icon: {
-    width: 45,
-    height: 45,
+    width: 50,
+    height: 50,
     tintColor: '#000',
   },
   moneyGrid: {

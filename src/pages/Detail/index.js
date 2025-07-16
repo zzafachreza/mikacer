@@ -16,7 +16,8 @@ const formatRupiah = amount => {
 
 export default function DetailPage({route, navigation}) {
   const [riwayat, setRiwayat] = useState(route.params?.riwayatTransaksi || []);
-  const [total, setTotal] = useState(0);
+  const [total, setTotal] = useState(route.params?.total || 0);
+  const [duit, setDuit] = useState(route.params?.DUIT || []);
 
   function convertNumberToWords(n) {
     const satuan = [
@@ -70,17 +71,19 @@ export default function DetailPage({route, navigation}) {
       }
       // Kembalian tidak dihitung
     });
-    console.log(calculatedTotal);
-    if (Math.abs(calculatedTotal) >= 0) {
-      Tts.speak(convertNumberToWords(Math.abs(calculatedTotal)));
+    console.log('duit', duit);
+    console.log('rw', riwayat);
+    if (Math.abs(total) >= 0) {
+      Tts.speak(convertNumberToWords(Math.abs(total)));
     } else {
-      Tts.speak('Minus ' + convertNumberToWords(calculatedTotal));
+      Tts.speak('Minus ' + convertNumberToWords(total));
     }
 
-    setTotal(calculatedTotal);
+    setTotal(total);
   }, [riwayat]);
 
   const getImageByNominal = nominal => {
+    console.log(nominal);
     const imageMap = {
       500: require('../../assets/500.png'),
       1000: require('../../assets/1000.png'),
@@ -94,13 +97,59 @@ export default function DetailPage({route, navigation}) {
     return imageMap[nominal] || null;
   };
 
-  const uangMasuk = riwayat.filter(
-    item => item.operator === '+' && !item.isKembalian,
-  );
+  const breakdownNominal = amount => {
+    if (amount <= 0) return [];
+
+    const availableNominals = uang.map(u => u.nominal).sort((a, b) => b - a); // Sort descending
+    const result = [];
+    let remaining = amount;
+
+    for (const nominal of availableNominals) {
+      while (remaining >= nominal) {
+        result.push(nominal);
+        remaining -= nominal;
+      }
+    }
+
+    return result;
+  };
+
+  const uang = [
+    {nominal: 500, src: require('../../assets/500.png')},
+    {nominal: 1000, src: require('../../assets/1000.png')},
+    {nominal: 2000, src: require('../../assets/2000.png')},
+    {nominal: 5000, src: require('../../assets/5000.png')},
+    {nominal: 10000, src: require('../../assets/10000.png')},
+    {nominal: 20000, src: require('../../assets/20000.png')},
+    {nominal: 50000, src: require('../../assets/50000.png')},
+    {nominal: 100000, src: require('../../assets/100000.png')},
+  ];
+
+  const uangMasuk =
+    riwayat.length == 1 && riwayat[0].tipe == 1
+      ? [
+          {nominal1: riwayat[0].nominal1, operator: riwayat[0].operator},
+          {nominal1: riwayat[0].nominal2, operator: riwayat[0].operator},
+        ]
+      : riwayat.length == 2 && riwayat[0].tipe == 1
+      ? [
+          {nominal1: riwayat[0].nominal1, operator: riwayat[0].operator},
+          {nominal1: riwayat[0].nominal2, operator: riwayat[0].operator},
+          {nominal1: riwayat[1].nominal2, operator: riwayat[1].operator},
+        ]
+      : riwayat.length == 3 && riwayat[0].tipe == 1
+      ? [
+          {nominal1: riwayat[0].nominal1},
+          {nominal1: riwayat[0].nominal2},
+          {nominal1: riwayat[0].nominal1},
+        ]
+      : riwayat.filter(item => item.operator === '+' && !item.isKembalian);
   const pengeluaran = riwayat.filter(item => item.operator === '-');
   const kembalian = riwayat.filter(
     item => item.operator === '+' && item.isKembalian,
   );
+
+  console.log('u', uangMasuk);
 
   const handleReset = () => {
     Alert.alert('Reset Berhasil', 'Semua data transaksi telah dikosongkan.');
@@ -122,55 +171,152 @@ export default function DetailPage({route, navigation}) {
         <Text style={styles.topTotalText}>{formatRupiah(Math.abs(total))}</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollArea}>
-        {/* Uang Masuk */}
-        {uangMasuk.length > 0 && (
-          <View style={styles.columnWrap}>
-            {uangMasuk.map((item, idx) => (
-              <React.Fragment key={`in-${idx}`}>
+      {riwayat.length > 0 && riwayat[0].tipe !== 1 && (
+        <ScrollView contentContainerStyle={styles.scrollArea}>
+          {/* Uang Masuk */}
+          {uangMasuk.length > 0 && (
+            <View style={styles.columnWrap}>
+              {uangMasuk.map((item, idx) => (
+                <React.Fragment key={`in-${idx}`}>
+                  {uang.filter(i => i.nominal == item.nominal1 || item.nominal2)
+                    .length > 0 && (
+                    <Image
+                      source={getImageByNominal(item.nominal1 || item.nominal2)}
+                      style={styles.uangImageVertical}
+                    />
+                  )}
+
+                  {uang.filter(i => i.nominal == item.nominal1 || item.nominal2)
+                    .length == 0 && (
+                    <View
+                      style={{
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}>
+                      <View style={{}}>
+                        {breakdownNominal(item.nominal1).map(
+                          (brokenNominal, index) => (
+                            <Image
+                              key={`${brokenNominal}-${index}`}
+                              source={getImageByNominal(brokenNominal)}
+                              style={[
+                                styles.uangImageVertical,
+                                {marginRight: 5, marginBottom: 5},
+                              ]}
+                            />
+                          ),
+                        )}
+                      </View>
+                    </View>
+                  )}
+
+                  {idx < uangMasuk.length - 1 && (
+                    <Text style={styles.plusSymbolVertical}>+</Text>
+                  )}
+                </React.Fragment>
+              ))}
+            </View>
+          )}
+
+          {/* Pengeluaran dan Kembalian */}
+          {(pengeluaran.length > 0 || kembalian.length > 0) && (
+            <>
+              <Text style={styles.operatorText}>-</Text>
+
+              {pengeluaran.length > 0 && (
+                <View style={[styles.rowWrap, {marginTop: 10}]}>
+                  {pengeluaran.map((item, idx) => (
+                    <Image
+                      key={`out-${idx}`}
+                      source={getImageByNominal(item.nominal1 || item.nominal2)}
+                      style={styles.uangImage}
+                    />
+                  ))}
+                </View>
+              )}
+
+              {kembalian.length > 0 && (
+                <View style={[styles.rowWrap, {marginTop: 10}]}>
+                  {kembalian.map((item, idx) => (
+                    <Image
+                      key={`kembali-${idx}`}
+                      source={getImageByNominal(item.nominal1 || item.nominal2)}
+                      style={styles.uangImageVertical}
+                    />
+                  ))}
+                </View>
+              )}
+            </>
+          )}
+        </ScrollView>
+      )}
+
+      {riwayat.length > 0 && riwayat[0].tipe == 1 && (
+        <ScrollView contentContainerStyle={styles.scrollArea}>
+          {/* Uang Masuk */}
+          {uangMasuk.length > 0 && (
+            <View style={styles.columnWrap}>
+              {uangMasuk.map((item, idx) => (
+                <React.Fragment key={`in-${idx}`}>
+                  <Text style={styles.plusSymbolVertical}>
+                    {idx > 0 && uangMasuk[idx].operator}
+                  </Text>
+                  {uang.filter(i => i.nominal == item.nominal1 || item.nominal2)
+                    .length > 0 && (
+                    <Image
+                      source={getImageByNominal(item.nominal1)}
+                      style={styles.uangImageVertical}
+                    />
+                  )}
+                  {uang.filter(i => i.nominal == item.nominal1 || item.nominal2)
+                    .length == 0 && (
+                    <View
+                      style={{
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}>
+                      <View style={{}}>
+                        {breakdownNominal(item.nominal1).map(
+                          (brokenNominal, index) => (
+                            <Image
+                              key={`${brokenNominal}-${index}`}
+                              source={getImageByNominal(brokenNominal)}
+                              style={[
+                                styles.uangImageVertical,
+                                {marginRight: 5, marginBottom: 5},
+                              ]}
+                            />
+                          ),
+                        )}
+                      </View>
+                    </View>
+                  )}
+                </React.Fragment>
+              ))}
+            </View>
+          )}
+
+          <Text style={styles.plusSymbolVertical}>=</Text>
+          <View
+            style={{
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}>
+            <View style={{}}>
+              {breakdownNominal(Math.abs(total)).map((brokenNominal, index) => (
                 <Image
-                  source={getImageByNominal(item.nominal1 || item.nominal2)}
-                  style={styles.uangImageVertical}
+                  key={`${brokenNominal}-${index}`}
+                  source={getImageByNominal(brokenNominal)}
+                  style={[
+                    styles.uangImageVertical,
+                    {marginRight: 5, marginBottom: 5},
+                  ]}
                 />
-                {idx < uangMasuk.length - 1 && (
-                  <Text style={styles.plusSymbolVertical}>+</Text>
-                )}
-              </React.Fragment>
-            ))}
+              ))}
+            </View>
           </View>
-        )}
-
-        {/* Pengeluaran dan Kembalian */}
-        {(pengeluaran.length > 0 || kembalian.length > 0) && (
-          <>
-            <Text style={styles.operatorText}>-</Text>
-
-            {pengeluaran.length > 0 && (
-              <View style={[styles.rowWrap, {marginTop: 10}]}>
-                {pengeluaran.map((item, idx) => (
-                  <Image
-                    key={`out-${idx}`}
-                    source={getImageByNominal(item.nominal1 || item.nominal2)}
-                    style={styles.uangImage}
-                  />
-                ))}
-              </View>
-            )}
-
-            {kembalian.length > 0 && (
-              <View style={[styles.rowWrap, {marginTop: 10}]}>
-                {kembalian.map((item, idx) => (
-                  <Image
-                    key={`kembali-${idx}`}
-                    source={getImageByNominal(item.nominal1 || item.nominal2)}
-                    style={styles.uangImageVertical}
-                  />
-                ))}
-              </View>
-            )}
-          </>
-        )}
-      </ScrollView>
+        </ScrollView>
+      )}
 
       <View style={styles.footer}>
         <TouchableOpacity

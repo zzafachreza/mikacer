@@ -125,14 +125,55 @@ export default function Home({navigation, route}) {
   };
 
   const handleKeranjang = () => {
-    Tts.speak('masuk keranjang');
-    if (currentNominal === 0 && total === 0) return;
+    console.log('🔥 === HANDLE KERANJANG DEBUG ===');
+    console.log('📊 State saat ini:');
+    console.log('  currentNominal:', currentNominal);
+    console.log('  total:', total);
+    console.log('  pendingOperator:', pendingOperator);
+    console.log('  isInKembalianMode:', isInKembalianMode);
+    console.log('  riwayatTransaksi.length:', riwayatTransaksi.length);
+    console.log('  riwayatTransaksi:', riwayatTransaksi);
 
-    const alreadyAdded =
-      total === currentNominal &&
-      riwayatTransaksi.length === 0 &&
-      !pendingOperator;
-    if (alreadyAdded) {
+    Tts.speak('masuk keranjang');
+
+    // Early return jika tidak ada data untuk diproses
+    if (currentNominal === 0 && total === 0) {
+      console.log('⚠️ SKIP: Tidak ada data untuk diproses');
+      return;
+    }
+
+    // PERBAIKAN 1: Deteksi input berulang
+    const lastTransaction = riwayatTransaksi[riwayatTransaksi.length - 1];
+    const isRepeatedInput =
+      lastTransaction &&
+      lastTransaction.nominal1 === currentNominal &&
+      lastTransaction.result === total &&
+      !pendingOperator &&
+      currentNominal !== 0;
+
+    console.log('🔎 Checking for repeated input:');
+    console.log('  lastTransaction:', lastTransaction);
+    console.log('  isRepeatedInput:', isRepeatedInput);
+
+    if (isRepeatedInput) {
+      console.log(
+        '⚠️ SKIP: Input berulang terdeteksi, tidak akan menambahkan lagi',
+      );
+      // Reset current nominal saja, jangan tambahkan ke transaksi
+      setCurrentNominal(0);
+      setSelectedNominal(null);
+      return;
+    }
+
+    // PERBAIKAN 2: Logika untuk transaksi pertama
+    const isFirstTransaction =
+      riwayatTransaksi.length === 0 && !pendingOperator && currentNominal > 0;
+
+    console.log('🔎 Checking first transaction:');
+    console.log('  isFirstTransaction:', isFirstTransaction);
+
+    if (isFirstTransaction) {
+      console.log('✅ MASUK KONDISI TRANSAKSI PERTAMA');
       const transaksi = {
         operator: '+',
         nominal1: currentNominal,
@@ -141,44 +182,128 @@ export default function Home({navigation, route}) {
         tipe: 0,
       };
 
+      console.log('  Transaksi pertama:', transaksi);
       setRiwayatTransaksi([transaksi]);
+      setTotal(currentNominal);
       setCurrentNominal(0);
       setSelectedNominal(null);
       return;
     }
 
-    let result = total;
-    let operatorToUse = pendingOperator || '+';
+    // PERBAIKAN 3: Handle kembalian mode
+    if (isInKembalianMode && currentNominal > 0) {
+      console.log('💰 MASUK KONDISI KEMBALIAN MODE');
+      const kembalian = currentNominal - total;
+      console.log(`🧮 Kembalian: ${currentNominal} - ${total} = ${kembalian}`);
 
-    if (pendingOperator === '+') {
-      result += currentNominal;
-    } else if (pendingOperator === '-') {
-      result -= currentNominal;
-      setIsInKembalianMode(true); // ✅ MASUK MODE KEMBALIAN
-    } else {
-      result += currentNominal;
+      const transaksiKembalian = {
+        operator: 'kembalian',
+        nominal1: currentNominal,
+        result: Math.abs(kembalian),
+        isKembalian: true,
+        tipe: 1,
+      };
+
+      setRiwayatTransaksi([...riwayatTransaksi, transaksiKembalian]);
+      setTotal(Math.abs(kembalian));
+      setCurrentNominal(0);
+      setSelectedNominal(null);
+      setIsInKembalianMode(false);
+      setPendingOperator(null);
+
+      // Speak the kembalian
+      Tts.speak(`kembalian ${convertNumberToWords(Math.abs(kembalian))}`);
+      return;
     }
 
-    const transaksi = {
-      operator: operatorToUse,
-      nominal1: currentNominal,
-      result,
-      isKembalian: isInKembalianMode, // ✅ Cek flag kembalian
-      tipe: 0,
-    };
+    // PERBAIKAN 4: Normal calculation dengan validasi
+    if (currentNominal > 0) {
+      console.log('🔄 MASUK KONDISI NORMAL CALCULATION');
 
-    const updated = [...riwayatTransaksi, transaksi];
+      let result = total;
+      const operatorToUse = pendingOperator || '+';
 
-    setRiwayatTransaksi(updated);
-    setTotal(result);
-    setCurrentNominal(0);
-    setSelectedNominal(null);
-    setPendingOperator(null);
-    setPreviousTotal(0);
+      console.log('🧮 Calculation:');
+      console.log('  Initial result (total):', result);
+      console.log('  operatorToUse:', operatorToUse);
+      console.log('  currentNominal:', currentNominal);
 
-    if (isInKembalianMode) {
-      setIsInKembalianMode(false); // ✅ Keluar dari mode kembalian setelah masukin
+      // Validasi: Cek apakah ini adalah penambahan yang tidak diinginkan
+      if (
+        operatorToUse === '+' &&
+        result === currentNominal &&
+        riwayatTransaksi.length > 0
+      ) {
+        console.log('⚠️ WARNING: Possible unwanted addition detected');
+
+        // Cek apakah transaksi terakhir sudah sama
+        if (lastTransaction && lastTransaction.result === result) {
+          console.log('⚠️ SKIP: Transaksi sudah ada dengan hasil yang sama');
+          setCurrentNominal(0);
+          setSelectedNominal(null);
+          return;
+        }
+      }
+
+      // Lakukan perhitungan
+      switch (operatorToUse) {
+        case '+':
+          result = total + currentNominal;
+          console.log(`  Addition: ${total} + ${currentNominal} = ${result}`);
+          break;
+        case '-':
+          result = total - currentNominal;
+          console.log(
+            `  Subtraction: ${total} - ${currentNominal} = ${result}`,
+          );
+
+          // Jika hasil negatif, masuk ke kembalian mode
+          if (result < 0) {
+            console.log('  Result is negative, entering kembalian mode');
+            setIsInKembalianMode(true);
+            // Jangan lanjutkan, biarkan user input nominal pembayaran
+            return;
+          }
+          break;
+        default:
+          result = total + currentNominal;
+          console.log(
+            `  Default Addition: ${total} + ${currentNominal} = ${result}`,
+          );
+      }
+
+      // Buat transaksi baru
+      const transaksi = {
+        operator: operatorToUse,
+        nominal1: currentNominal,
+        result: result,
+        isKembalian: false,
+        tipe: 0,
+      };
+
+      console.log('📝 Transaksi baru:', transaksi);
+
+      // Update state
+      const updatedTransaksi = [...riwayatTransaksi, transaksi];
+      console.log('📋 Updated riwayatTransaksi:', updatedTransaksi);
+
+      setRiwayatTransaksi(updatedTransaksi);
+      setTotal(result);
+      setCurrentNominal(0);
+      setSelectedNominal(null);
+      setPendingOperator(null);
+      setPreviousTotal(0);
+
+      console.log('🔚 Final states:');
+      console.log('  new total:', result);
+      console.log('  reset currentNominal: 0');
+      console.log('  reset pendingOperator: null');
+
+      // Speak the result
+      Tts.speak(convertNumberToWords(result));
     }
+
+    console.log('🏁 === END HANDLE KERANJANG ===\n');
   };
 
   const resetAll = () => {
@@ -209,26 +334,47 @@ export default function Home({navigation, route}) {
     });
   };
 
+  // PERBAIKAN 5: Modifikasi handleSelectNominal untuk menghindari konflik
   const handleSelectNominal = nominal => {
-    console.log('nominal', nominal);
+    console.log('🎯 === HANDLE SELECT NOMINAL ===');
+    console.log('nominal:', nominal);
     console.log(
-      'uang',
+      'uang filter:',
       uang.filter(i => i.nominal == nominal),
     );
+
     if (uang.filter(i => i.nominal == nominal).length > 0) {
-      console.log('NORMAL');
+      console.log('NORMAL - nominal ada di daftar uang');
     } else {
-      console.log('TIDAK NORMAL');
+      console.log('TIDAK NORMAL - nominal tidak ada di daftar uang');
     }
+
+    // PERBAIKAN: Cek apakah ini input berulang
+    if (selectedNominal === nominal && currentNominal === nominal) {
+      console.log('⚠️ SKIP: Nominal yang sama sudah dipilih');
+      return;
+    }
+
     const newNominal = selectedNominal === nominal ? 0 : nominal;
     setCurrentNominal(newNominal);
     setSelectedNominal(newNominal);
+
+    // Update DUIT array
     const updated = [...DUIT, newNominal];
     setDUIT(updated);
 
-    if (!pendingOperator && total === 0 && riwayatTransaksi.length === 0) {
+    // Hanya set total jika ini adalah transaksi pertama
+    if (
+      !pendingOperator &&
+      total === 0 &&
+      riwayatTransaksi.length === 0 &&
+      newNominal > 0
+    ) {
+      console.log('Setting initial total:', newNominal);
       setTotal(newNominal);
     }
+
+    console.log('🏁 === END SELECT NOMINAL ===\n');
   };
 
   useEffect(() => {
@@ -241,28 +387,34 @@ export default function Home({navigation, route}) {
     return !isNaN(value) && Number.isFinite(Number(value));
   };
 
+  // PERBAIKAN 6: Modifikasi Voice handler untuk konsistensi
   useEffect(() => {
     Voice.onSpeechResults = event => {
       const spokenText = event.value[0].toLowerCase();
-      console.log('hasil suara', spokenText);
+      console.log('🎤 === VOICE RECOGNITION ===');
+      console.log('hasil suara:', spokenText);
+
       let gabung = event.value[0].split(' ');
-      let uang = gabung[0].replace('.', '');
+      let nominalStr = gabung[0].replace('.', '');
 
-      if (isAngka(uang)) {
-        Tts.speak(convertNumberToWords(uang));
-        console.log('suara', uang);
+      if (isAngka(nominalStr)) {
+        const nominal = parseFloat(nominalStr);
+        console.log('suara nominal:', nominal);
 
-        handleSelectNominal(parseFloat(uang));
-        // setCurrentNominal(parseInt(uang));
-        // setSelectedNominal(parseInt(uang));
+        // Cek apakah ini input berulang dari voice
+        if (currentNominal === nominal) {
+          console.log('⚠️ SKIP: Voice input berulang');
+          return;
+        }
+
+        Tts.speak(convertNumberToWords(nominal));
+        handleSelectNominal(nominal);
       } else {
+        console.log('❌ Nominal tidak dikenali');
         Tts.speak('Jumlah tidak dikenali');
       }
 
-      // setText(spokenText);
-      // const angka = kataKeAngka(spokenText);
-      // setResultAngka(angka);
-      // setIsListening(false);
+      console.log('🏁 === END VOICE RECOGNITION ===\n');
     };
 
     Voice.onSpeechEnd = () => {
@@ -272,7 +424,7 @@ export default function Home({navigation, route}) {
     return () => {
       Voice.destroy().then(Voice.removeAllListeners);
     };
-  }, []);
+  }, [currentNominal, selectedNominal, total, riwayatTransaksi]);
 
   function convertNumberToWords(n) {
     const satuan = [

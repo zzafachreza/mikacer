@@ -1,6 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
-import { createStackNavigator } from '@react-navigation/stack';
+import {StyleSheet, Text, View, TouchableOpacity} from 'react-native';
+import {createStackNavigator} from '@react-navigation/stack';
 import {
   Splash,
   Home,
@@ -69,16 +69,13 @@ import {
   TambahBuktiPengeluaran,
   HasilBuatPenawaran,
   DetailPage,
-
-
-
+  Info,
+  Tutorial,
 } from '../pages';
-import { colors } from '../utils';
-import { Icon } from 'react-native-elements';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { BottomNavigator } from '../components';
-
-
+import {colors} from '../utils';
+import {Icon} from 'react-native-elements';
+import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import {BottomNavigator} from '../components';
 
 const Tab = createBottomTabNavigator();
 
@@ -96,7 +93,7 @@ const Stack = createStackNavigator();
 
 export default function Router() {
   return (
-    <Stack.Navigator initialRouteName=''>
+    <Stack.Navigator initialRouteName="">
       <Stack.Screen
         name="Splash"
         component={Splash}
@@ -105,126 +102,117 @@ export default function Router() {
         }}
       />
 
-
-
-
-
       <Stack.Screen
         name="Account"
         component={Account}
         options={{
           headerShown: false,
-
         }}
       />
 
+      <Stack.Screen
+        name="Info"
+        component={Info}
+        options={{
+          headerShown: false,
+        }}
+      />
 
-<Stack.Screen
+      <Stack.Screen
+        name="Tutorial"
+        component={Tutorial}
+        options={{
+          headerShown: false,
+        }}
+      />
+
+      <Stack.Screen
         name="Detail"
         component={DetailPage}
         options={{
           headerShown: false,
-
         }}
       />
 
-<Stack.Screen
+      <Stack.Screen
         name="TambahPenawaran"
         component={TambahPenawaran}
         options={{
           headerShown: false,
-
         }}
       />
 
-
-<Stack.Screen
+      <Stack.Screen
         name="DownloadBrosur"
         component={DonwnloadBrosur}
         options={{
           headerShown: false,
-
         }}
       />
 
-<Stack.Screen
+      <Stack.Screen
         name="BuktiPengeluaran"
         component={BuktiPengeluaran}
         options={{
           headerShown: false,
-
         }}
       />
 
-      
-<Stack.Screen
+      <Stack.Screen
         name="TambahBuktiPengeluaran"
         component={TambahBuktiPengeluaran}
         options={{
           headerShown: false,
-
         }}
       />
 
-<Stack.Screen
+      <Stack.Screen
         name="HasilBuatPenawaran"
         component={HasilBuatPenawaran}
         options={{
           headerShown: false,
-
         }}
       />
 
-<Stack.Screen
+      <Stack.Screen
         name="Login"
         component={Login}
         options={{
           headerShown: false,
-
         }}
       />
 
-<Stack.Screen
+      <Stack.Screen
         name="CheckHargaStock"
         component={CheckHargaStock}
         options={{
           headerShown: false,
-
         }}
       />
 
-<Stack.Screen
+      <Stack.Screen
         name="Register"
         component={Register}
         options={{
           headerShown: false,
-
         }}
       />
-
 
       <Stack.Screen
         name="KalkulatorKompos"
         component={KalkulatorKompos}
         options={{
           headerShown: false,
-
         }}
       />
 
-
-<Stack.Screen
+      <Stack.Screen
         name="Petunjuk"
         component={Petunjuk}
         options={{
           headerShown: false,
-
         }}
       />
-
-
-
-
 
       <Stack.Screen
         name="AccountEdit"
@@ -239,7 +227,6 @@ export default function Router() {
         }}
       />
 
-
       <Stack.Screen
         name="Home"
         component={Home}
@@ -247,22 +234,6 @@ export default function Router() {
           headerShown: false,
         }}
       />
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     </Stack.Navigator>
   );
 }

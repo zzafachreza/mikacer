@@ -14,11 +14,8 @@ import BuktiPengeluaran from './Menu/buktipengeluaran';
 import TambahBuktiPengeluaran from './Menu/tambahbuktipengeluaran';
 import HasilBuatPenawaran from './Menu/hasilbuatpenawaran';
 import DetailPage from './Detail';
-
-
-
-
-
+import Info from './Home/Info';
+import Tutorial from './Home/Tutorial';
 
 export {
   Splash,
@@ -28,6 +25,8 @@ export {
   AccountEdit,
   KalkulatorKompos,
   Petunjuk,
+  Info,
+  Tutorial,
   Register,
   CheckHargaStock,
   BuatPenawaran,
@@ -37,9 +36,4 @@ export {
   TambahBuktiPengeluaran,
   HasilBuatPenawaran,
   DetailPage,
-
-
-
-  
-
 };

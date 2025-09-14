@@ -482,7 +482,28 @@ export default function Home({navigation, route}) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>MIKACER</Text>
+      <View
+        style={{
+          width: windowWidth,
+          position: 'relative',
+        }}>
+        <Text style={styles.title}>MIKACER</Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Info')}
+          style={{
+            position: 'absolute',
+            right: 10,
+            top: 5,
+            padding: 5,
+          }}>
+          <Icon
+            type="ionicon"
+            name="information-circle-outline"
+            color={colors.secondary}
+            size={40}
+          />
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.totalContainer}>
         <Image
@@ -622,6 +643,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
+    textAlign: 'center',
     fontSize: 28,
     fontFamily: fonts.primary[800],
     color: '#fb5607',

@@ -5,17 +5,42 @@ import {
   View,
   Image,
   TouchableOpacity,
+  PermissionsAndroid,
   ScrollView,
 } from 'react-native';
 import {colors, fonts, windowWidth} from '../../utils';
 import {formatRupiah} from '../../utils/currency';
 import Tts from 'react-native-tts';
 import Voice from '@react-native-voice/voice';
+
 import {Icon} from 'react-native-elements';
 
 export default function Home({navigation, route}) {
   Tts.setDefaultRate(0.6);
   Tts.setDefaultLanguage('in-ID');
+
+  const requestMicPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+          {
+            title: 'Izin Mikrofon',
+            message:
+              'Aplikasi perlu mengakses mikrofon untuk mendengarkan suara Anda',
+            buttonNeutral: 'Tanya Nanti',
+            buttonNegative: 'Batal',
+            buttonPositive: 'OK',
+          },
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn(err);
+        return false;
+      }
+    }
+    return true;
+  };
 
   const [text, setText] = useState('');
   const [resultAngka, setResultAngka] = useState(null);
@@ -395,8 +420,8 @@ export default function Home({navigation, route}) {
       console.log('hasil suara:', spokenText);
 
       let gabung = event.value[0].split(' ');
-      let nominalStr = gabung[0].replace('.', '');
-
+      let nominalStr = gabung[0].replace('.', '').replace('Rp', '');
+      console.log('hasil suara filter:', nominalStr);
       if (isAngka(nominalStr)) {
         const nominal = parseFloat(nominalStr);
         console.log('suara nominal:', nominal);
@@ -470,6 +495,12 @@ export default function Home({navigation, route}) {
 
   const mulaiDengar = async () => {
     try {
+      const hasPermission = await requestMicPermission();
+      if (!hasPermission) {
+        console.log('Permission mic ditolak');
+        return;
+      }
+
       setIsListening(true);
       setText('');
       setResultAngka(null);

@@ -240,14 +240,20 @@ export default function DetailPage({route, navigation}) {
               {pengeluaran.length > 0 && (
                 <View style={[styles.rowWrap, {marginTop: 10}]}>
                   {pengeluaran.map((item, idx) => (
-                    <Image
-                      key={`out-${idx}`}
-                      source={getImageByNominal(item.nominal1 || item.nominal2)}
-                      style={[
-                        styles.uangImageVertical,
-                        {marginRight: 5, marginBottom: 5},
-                      ]}
-                    />
+                    <>
+                      {breakdownNominal(item.nominal2).map(
+                        (brokenNominal, index) => (
+                          <Image
+                            key={`out-${idx}`}
+                            source={getImageByNominal(item.nominal2)}
+                            style={[
+                              styles.uangImageVertical,
+                              {marginRight: 5, marginBottom: 5},
+                            ]}
+                          />
+                        ),
+                      )}
+                    </>
                   ))}
                 </View>
               )}
